@@ -1,0 +1,16 @@
+{
+  "name": "example",
+  "version": "0.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "gulp": "~3.8.10",
+    "gulp-awslambda": "0.0.0",
+    "gulp-zip": "~2.0.2"
+  }
+}
