@@ -32,11 +32,11 @@ gulp.task('default', function() {
 });
 ```
 
-`lambda_params` can either be a string or an object of parameters defining the Lambda function (the same as you would pass to [`uploadFunction()`](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/Lambda.html#uploadFunction-property)). If it is a string, gulp-awslambda assumes the function already exists and attempts to download its existing configuration.
+For more information on `lambda_params` and `opts` see the [API section](#api).
 
 ### Example Project
 
-See the `example/` directory for a full working example.
+See the `example/` directory of this repo for a full working example.
 
 ## API
 
@@ -46,4 +46,28 @@ lambda(lambda_params, opts)
 
 ### `lambda_params`
 
+Parameters describing the Lambda function. This can either be...
+
+#### A String
+
+corresponding to the name of an existing Lambda function. In this case gulp-awslambda will automatically download its configuration and use it to upload changes.
+
+#### An Object
+
+that is exactly the same as you would pass to [`uploadFunction()`](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/Lambda.html#uploadFunction-property) minus the `FunctionZip` property. The only required parameters are `FunctionName` and `Role`. All the other parameters have the following default values:
+
+- `Handler = 'index.handler'`: This assumes a valid `exports.handler` in `index.js` at the root of your ZIP
+- `Mode = 'event'`: Currently the only supported mode
+- `Runtime = 'nodejs'`: Currently the only supported runtime
+
 ### `opts`
+
+Options configuring the AWS environment to be used when uploading the function. The following options are supported:
+
+#### `profile`
+
+If you [use a different credentials profile](http://docs.aws.amazon.com/AWSJavaScriptSDK/guide/node-configuring.html#Using_Profiles_with_the_SDK), you can specify its name with this option.
+
+#### `region = 'us-east-1'`
+
+Set your AWS region.
