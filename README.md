@@ -1,4 +1,6 @@
 # [gulp](https://github.com/gulpjs/gulp)-awslambda
+
+[![Travis](https://img.shields.io/travis/willyg302/gulp-awslambda.svg?style=flat-square)](https://travis-ci.org/willyg302/gulp-awslambda)
 [![license](http://img.shields.io/badge/license-MIT-red.svg?style=flat-square)](https://raw.githubusercontent.com/willyg302/gulp-awslambda/master/LICENSE)
 
 > A Gulp plugin for publishing your package to AWS Lambda
