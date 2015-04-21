@@ -17,8 +17,8 @@ module.exports = function(params, opts) {
 	};
 
 	var upload = function(lambda, configuration, stream, cb) {
-		configuration = extend(configuration, {FunctionZip: toUpload.contents});
-		lambda.uploadFunction(configuration, function(err, data) {
+		configuration = extend(configuration, {ZipFile: toUpload.contents});
+		lambda.updateFunctionCode(configuration, function(err, data) {
 			if (err) {
 				cb(make_err(err.message));
 				return;
@@ -69,14 +69,21 @@ module.exports = function(params, opts) {
 					if (err.statusCode === 404) {
 						cb(make_err("Unable to find the Lambda function " + params));
 					} else {
+						console.log(err.code);
 						cb(make_err('AWS API request failed, check your AWS credentials are correct'));
 					}
 					return;
 				}
 				delete data.CodeSize;
 				delete data.ConfigurationId;
-				delete data.FunctionARN;
 				delete data.LastModified;
+				delete data.Description;
+				delete data.FunctionArn;
+				delete data.Handler;
+				delete data.MemorySize;
+				delete data.Role;
+				delete data.Runtime;
+				delete data.Timeout;
 				upload(lambda, data, stream, cb);
 			});
 		} else {
