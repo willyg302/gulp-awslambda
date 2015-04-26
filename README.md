@@ -52,15 +52,16 @@ Parameters describing the Lambda function. This can either be...
 
 #### A String
 
-corresponding to the name of an existing Lambda function. In this case gulp-awslambda will automatically download its configuration and use it to upload changes.
+corresponding to the name of an existing Lambda function. In this case gulp-awslambda will only update the function's code.
 
 #### An Object
 
-that is exactly the same as you would pass to [`uploadFunction()`](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/Lambda.html#uploadFunction-property) minus the `FunctionZip` property. The only required parameters are `FunctionName` and `Role`. All the other parameters have the following default values:
+that is exactly the same as you would pass to [`updateFunctionConfiguration()`](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/Lambda.html#updateFunctionConfiguration-property). The only required parameters are `FunctionName` and `Role`. All the other parameters have the following default values:
 
 - `Handler = 'index.handler'`: This assumes a valid `exports.handler` in `index.js` at the root of your ZIP
-- `Mode = 'event'`: Currently the only supported mode
 - `Runtime = 'nodejs'`: Currently the only supported runtime
+
+gulp-awslambda will perform an *upsert*, meaning the function will be created if it does not already exist, and updated (both code and configuration) otherwise.
 
 ### `opts`
 

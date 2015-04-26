@@ -16,19 +16,6 @@ module.exports = function(params, opts) {
 		return new gutil.PluginError('gulp-awslambda', message);
 	};
 
-	var upload = function(lambda, configuration, stream, cb) {
-		configuration = extend(configuration, {ZipFile: toUpload.contents});
-		lambda.updateFunctionCode(configuration, function(err, data) {
-			if (err) {
-				cb(make_err(err.message));
-				return;
-			}
-			gutil.log('Lambda function successfully uploaded');
-			stream.push(toUpload);
-			cb();
-		});
-	};
-
 	return through.obj(function(file, enc, cb) {
 		if (file.isNull()) {
 			cb();
@@ -55,43 +42,58 @@ module.exports = function(params, opts) {
 		gutil.log('Uploading Lambda function...');
 
 		if (opts.profile !== null) {
-			AWS.config.credentials = new AWS.SharedIniFileCredentials({profile: opts.profile});
+			AWS.config.credentials = new AWS.SharedIniFileCredentials({ profile: opts.profile });
 		}
 
-		AWS.config.update({region: opts.region});
+		AWS.config.update({ region: opts.region });
 
 		var lambda = new AWS.Lambda();
 		var stream = this;
 
+		var done = function(err) {
+			if (err) {
+				cb(make_err(err.message));
+				return;
+			}
+			gutil.log('Lambda function successfully uploaded');
+			stream.push(toUpload);
+			cb();
+		};
+
 		if (typeof params === 'string') {
-			lambda.getFunctionConfiguration({FunctionName: params}, function(err, data) {
-				if (err) {
-					if (err.statusCode === 404) {
-						cb(make_err("Unable to find the Lambda function " + params));
-					} else {
-						console.log(err.code);
-						cb(make_err('AWS API request failed, check your AWS credentials are correct'));
-					}
-					return;
-				}
-				delete data.CodeSize;
-				delete data.ConfigurationId;
-				delete data.LastModified;
-				delete data.Description;
-				delete data.FunctionArn;
-				delete data.Handler;
-				delete data.MemorySize;
-				delete data.Role;
-				delete data.Runtime;
-				delete data.Timeout;
-				upload(lambda, data, stream, cb);
-			});
+			// Just updating code
+			lambda.updateFunctionCode({
+				FunctionName: params,
+				ZipFile: toUpload.contents
+			}, done);
 		} else {
-			upload(lambda, extend({
-				Handler: 'index.handler',
-				Mode: 'event',
-				Runtime: 'nodejs'
-			}, params), stream, cb);
+			lambda.getFunctionConfiguration({
+				FunctionName: params.FunctionName
+			}, function(err) {
+				if (err) {
+					// Creating a function
+					lambda.createFunction(extend({
+						Handler: 'index.handler',
+						Runtime: 'nodejs'
+					}, params, {
+						Code: {
+							ZipFile: toUpload.contents
+						}
+					}), done);
+				} else {
+					// Updating code + config
+					lambda.updateFunctionCode({
+						FunctionName: params,
+						ZipFile: toUpload.contents
+					}, function(err) {
+						if (err) {
+							done(err);
+							return;
+						}
+						lambda.updateFunctionConfiguration(params, done);
+					});
+				}
+			});
 		}
 	});
 };
