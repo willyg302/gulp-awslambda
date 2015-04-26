@@ -83,7 +83,7 @@ module.exports = function(params, opts) {
 				} else {
 					// Updating code + config
 					lambda.updateFunctionCode({
-						FunctionName: params,
+						FunctionName: params.FunctionName,
 						ZipFile: toUpload.contents
 					}, function(err) {
 						if (err) {
