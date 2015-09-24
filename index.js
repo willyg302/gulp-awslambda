@@ -11,6 +11,7 @@ module.exports = function(params, opts) {
 	}, opts);
 
 	var toUpload;
+	var functionName = typeof params === 'string'? params : params.FunctionName;
 
 	var make_err = function(message) {
 		return new gutil.PluginError('gulp-awslambda', message);
@@ -39,7 +40,7 @@ module.exports = function(params, opts) {
 			return;
 		}
 
-		gutil.log('Uploading Lambda function "' + params.FunctionName + '"...');
+		gutil.log('Uploading Lambda function "' + functionName + '"...');
 
 		if (opts.profile !== null) {
 			AWS.config.credentials = new AWS.SharedIniFileCredentials({ profile: opts.profile });
@@ -55,7 +56,7 @@ module.exports = function(params, opts) {
 				cb(make_err(err.message));
 				return;
 			}
-			gutil.log('Lambda function "' + params.FunctionName + '" successfully uploaded');
+			gutil.log('Lambda function "' + functionName + '" successfully uploaded');
 			stream.push(toUpload);
 			cb();
 		};
