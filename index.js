@@ -39,7 +39,7 @@ module.exports = function(params, opts) {
 			return;
 		}
 
-		gutil.log('Uploading Lambda function...');
+		gutil.log('Uploading Lambda function "' + params.FunctionName + '"...');
 
 		if (opts.profile !== null) {
 			AWS.config.credentials = new AWS.SharedIniFileCredentials({ profile: opts.profile });
@@ -55,7 +55,7 @@ module.exports = function(params, opts) {
 				cb(make_err(err.message));
 				return;
 			}
-			gutil.log('Lambda function successfully uploaded');
+			gutil.log('Lambda function "' + params.FunctionName + '" successfully uploaded');
 			stream.push(toUpload);
 			cb();
 		};
