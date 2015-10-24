@@ -83,10 +83,14 @@ module.exports = function(params, opts) {
 					}), done);
 				} else {
 					// Updating code + config
-					lambda.updateFunctionCode({
+					var publish = 'Publish' in params ? {
+						Publish: params.Publish
+					} : {};
+					delete params.Publish;
+					lambda.updateFunctionCode(extend({
 						FunctionName: params.FunctionName,
 						ZipFile: toUpload.contents
-					}, function(err) {
+					}, publish), function(err) {
 						if (err) {
 							done(err);
 							return;
