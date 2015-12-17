@@ -65,7 +65,8 @@ module.exports = function(params, opts) {
 			// Just updating code
 			lambda.updateFunctionCode({
 				FunctionName: params,
-				ZipFile: toUpload.contents
+				ZipFile: toUpload.contents,
+				Publish: params.Publish || false
 			}, done);
 		} else {
 			lambda.getFunctionConfiguration({
@@ -82,15 +83,13 @@ module.exports = function(params, opts) {
 						}
 					}), done);
 				} else {
-					// Updating code + config
-					var publish = 'Publish' in params ? {
-						Publish: params.Publish
-					} : {};
+					var publish = params.Publish
 					delete params.Publish;
-					lambda.updateFunctionCode(extend({
+					lambda.updateFunctionCode({
 						FunctionName: params.FunctionName,
-						ZipFile: toUpload.contents
-					}, publish), function(err) {
+						ZipFile: toUpload.contents,
+						Publish: publish || false
+					}), function(err) {
 						if (err) {
 							done(err);
 							return;
