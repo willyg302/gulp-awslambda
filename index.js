@@ -4,40 +4,64 @@ var gutil = require('gulp-util');
 var through = require('through2');
 var extend = require('xtend');
 
+
+var DEFAULT_OPTS = {
+	profile: null,
+	region: 'us-east-1'
+};
+
+var DEFAULT_PARAMS = {
+	Handler: 'index.handler',
+	Runtime: 'nodejs'
+};
+
+
+var makeErr = function(message) {
+	return new gutil.PluginError('gulp-awslambda', message);
+};
+
+var updateFunctionCode = function(lambda, name, upload, params, opts, cb) {
+	var code = params.Code || { ZipFile: upload.contents };
+	lambda.updateFunctionCode(extend({
+		FunctionName: name
+	}, code, {
+		Publish: opts.publish || false
+	}), cb);
+};
+
+var createFunction = function(lambda, upload, params, opts, cb) {
+	params.Code = params.Code || { ZipFile: upload.contents };
+	lambda.createFunction(extend(DEFAULT_PARAMS, {
+		Publish: opts.publish || false
+	}, params), cb);
+};
+
+
 module.exports = function(params, opts) {
-	opts = extend({
-		profile: null,
-		region: 'us-east-1'
-	}, opts);
+	opts = extend(DEFAULT_OPTS, opts);
 
 	var toUpload;
 	var functionName = typeof params === 'string'? params : params.FunctionName;
 
-	var make_err = function(message) {
-		return new gutil.PluginError('gulp-awslambda', message);
-	};
-
-	return through.obj(function(file, enc, cb) {
+	var transform = function(file, enc, cb) {
 		if (file.isNull()) {
-			cb();
-			return;
+			return cb();
 		}
 		if (file.isStream()) {
-			cb(make_err('Streaming is not supported'));
-			return;
+			return cb(makeErr('Streaming is not supported'));
 		}
 		if (!toUpload) {
 			toUpload = file;
 		}
 		cb();
-	}, function(cb) {
-		if (!toUpload) {
-			cb(make_err('No file provided'));
-			return;
+	};
+
+	var flush = function(cb) {
+		if (!toUpload && (typeof params === 'string' || !params.Code)) {
+			return cb(makeErr('No code provided'));
 		}
-		if (toUpload.path.slice(-4) !== '.zip') {
-			cb(make_err('Provided file is not a ZIP'));
-			return;
+		if (toUpload && toUpload.path.slice(-4) !== '.zip') {
+			return cb(makeErr('Provided file is not a ZIP'));
 		}
 
 		gutil.log('Uploading Lambda function "' + functionName + '"...');
@@ -53,8 +77,7 @@ module.exports = function(params, opts) {
 
 		var done = function(err) {
 			if (err) {
-				cb(make_err(err.message));
-				return;
+				return cb(makeErr(err.message));
 			}
 			gutil.log('Lambda function "' + functionName + '" successfully uploaded');
 			stream.push(toUpload);
@@ -63,42 +86,26 @@ module.exports = function(params, opts) {
 
 		if (typeof params === 'string') {
 			// Just updating code
-			lambda.updateFunctionCode({
-				FunctionName: params,
-				ZipFile: toUpload.contents
-			}, done);
+			updateFunctionCode(lambda, params, toUpload, params, opts, done);
 		} else {
 			lambda.getFunctionConfiguration({
 				FunctionName: params.FunctionName
 			}, function(err) {
 				if (err) {
 					// Creating a function
-					lambda.createFunction(extend({
-						Handler: 'index.handler',
-						Runtime: 'nodejs'
-					}, params, {
-						Code: {
-							ZipFile: toUpload.contents
-						}
-					}), done);
+					createFunction(lambda, toUpload, params, opts, done);
 				} else {
 					// Updating code + config
-					var publish = 'Publish' in params ? {
-						Publish: params.Publish
-					} : {};
-					delete params.Publish;
-					lambda.updateFunctionCode(extend({
-						FunctionName: params.FunctionName,
-						ZipFile: toUpload.contents
-					}, publish), function(err) {
+					updateFunctionCode(lambda, params.FunctionName, toUpload, params, opts, function(err) {
 						if (err) {
-							done(err);
-							return;
+							return done(err);
 						}
 						lambda.updateFunctionConfiguration(params, done);
 					});
 				}
 			});
 		}
-	});
+	};
+
+	return through.obj(transform, flush);
 };

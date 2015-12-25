@@ -56,12 +56,24 @@ corresponding to the name of an existing Lambda function. In this case gulp-awsl
 
 #### An Object
 
-that is exactly the same as you would pass to [`updateFunctionConfiguration()`](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/Lambda.html#updateFunctionConfiguration-property). The only required parameters are `FunctionName` and `Role`. All the other parameters have the following default values:
+that is mostly the same as you would pass to [`updateFunctionConfiguration()`](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/Lambda.html#updateFunctionConfiguration-property). The only required parameters are `FunctionName` and `Role`. All the other parameters have the following default values:
 
 - `Handler = 'index.handler'`: This assumes a valid `exports.handler` in `index.js` at the root of your ZIP
 - `Runtime = 'nodejs'`: Currently the only supported runtime
 
 gulp-awslambda will perform an *upsert*, meaning the function will be created if it does not already exist, and updated (both code and configuration) otherwise.
+
+For code, gulp-awslambda will default to passing the `ZipFile` property. However, you may alternatively pass e.g.:
+
+```js
+Code: {
+	S3Bucket: 'myBucket',
+	S3Key: 'function.zip',
+},
+...
+```
+
+to upload from S3.
 
 ### `opts`
 
@@ -70,6 +82,10 @@ Options configuring the AWS environment to be used when uploading the function. 
 #### `profile`
 
 If you [use a different credentials profile](http://docs.aws.amazon.com/AWSJavaScriptSDK/guide/node-configuring.html#Using_Profiles_with_the_SDK), you can specify its name with this option.
+
+#### `publish`
+
+Allows you to publish a new version when passing in a string for `lambda_params`. Otherwise, you may simply specify `Publish` as a parameter. If both are provided, the value in `lambda_params` will take precedence.
 
 #### `region = 'us-east-1'`
 
