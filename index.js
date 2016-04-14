@@ -21,6 +21,7 @@ var makeErr = function(message) {
 };
 
 var updateFunctionCode = function(lambda, name, upload, params, opts, cb) {
+	delete params.Runtime;
 	var code = params.Code || { ZipFile: upload.contents };
 	lambda.updateFunctionCode(extend({
 		FunctionName: name
