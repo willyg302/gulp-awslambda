@@ -12,7 +12,7 @@ var DEFAULT_OPTS = {
 
 var DEFAULT_PARAMS = {
 	Handler: 'index.handler',
-	Runtime: 'nodejs'
+	Runtime: 'nodejs4.3'
 };
 
 
@@ -22,6 +22,9 @@ var makeErr = function(message) {
 
 var updateFunctionCode = function(lambda, name, upload, params, opts, cb) {
 	var code = params.Code || { ZipFile: upload.contents };
+	
+	delete params.Runtime;
+	
 	lambda.updateFunctionCode(extend({
 		FunctionName: name
 	}, code, {
