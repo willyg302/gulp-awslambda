@@ -100,6 +100,9 @@ module.exports = function(params, opts) {
 						if (err) {
 							return done(err);
 						}
+						if (params.hasOwnProperty('Code')) {
+							delete params['Code'];
+						}
 						lambda.updateFunctionConfiguration(params, done);
 					});
 				}
