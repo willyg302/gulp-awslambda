@@ -22,7 +22,7 @@
     "url": "https://github.com/willyg302/gulp-awslambda/issues"
   },
   "dependencies": {
-    "aws-sdk": "~2.2.26",
+    "aws-sdk": "2.2.*",
     "gulp-util": "~3.0.7",
     "through2": "~0.6.5",
     "xtend": "~4.0.1"
