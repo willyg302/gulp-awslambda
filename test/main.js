@@ -135,7 +135,7 @@ describe('gulp-awslambda', function() {
 					ZipFile: file.contents,
 				},
 				Handler: 'index.handler',
-				Runtime: 'nodejs',
+				Runtime: 'nodejs4.3',
 				Publish: false,
 			});
 		});

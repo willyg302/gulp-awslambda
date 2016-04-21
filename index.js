@@ -23,9 +23,6 @@ var makeErr = function(message) {
 var updateFunctionCode = function(lambda, name, upload, params, opts, cb) {
 	delete params.Runtime;
 	var code = params.Code || { ZipFile: upload.contents };
-	
-	delete params.Runtime;
-	
 	lambda.updateFunctionCode(extend({
 		FunctionName: name
 	}, code, {
@@ -104,9 +101,7 @@ module.exports = function(params, opts) {
 						if (err) {
 							return done(err);
 						}
-						if (params.hasOwnProperty('Code')) {
-							delete params['Code'];
-						}
+						delete params.Code;
 						lambda.updateFunctionConfiguration(params, done);
 					});
 				}
