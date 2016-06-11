@@ -15,6 +15,9 @@ var DEFAULT_PARAMS = {
 	Runtime: 'nodejs4.3'
 };
 
+var makeWarning = function(message) {
+	return gutil.log(gutil.colors.red(message));
+};
 
 var makeErr = function(message) {
 	return new gutil.PluginError('gulp-awslambda', message);
@@ -67,11 +70,23 @@ module.exports = function(params, opts) {
 
 		gutil.log('Uploading Lambda function "' + functionName + '"...');
 
+		if (opts.profile && opts.config) {
+			return cb(makeWarning('Option "credentials" will take precedence over option "region"'));
+		}
+
 		if (opts.profile !== null) {
 			AWS.config.credentials = new AWS.SharedIniFileCredentials({ profile: opts.profile });
 		}
 
 		AWS.config.update({ region: opts.region });
+
+		if (opts.credentials !== null) {
+			if (opts.credentials.constructor.name === 'Credentials') {
+				AWS.config.credentials = opts.credentials;
+			} else {
+				return cb(makeErr('Option `credentials` is not an instance of Credentials'));
+			}
+		}
 
 		var lambda = new AWS.Lambda();
 		var stream = this;

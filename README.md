@@ -90,3 +90,18 @@ Allows you to publish a new version when passing in a string for `lambda_params`
 #### `region = 'us-east-1'`
 
 Set your AWS region.
+
+#### `credentials`
+
+Allow to override the AWS object. For example, this could be useful is you need to provide credentials from alternate source.
+
+For example:
+```js
+AWS.config.loadFromPath('../aws.json');
+var awsCredentials = AWS.config.credentials;
+
+var opts = {
+	credentials: awsCredentials;
+};
+```
+The `credentials` parameter will take precedence over the region one.
