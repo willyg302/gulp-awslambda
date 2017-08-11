@@ -1,6 +1,6 @@
 {
   "name": "gulp-awslambda",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "A Gulp plugin for publishing your package to AWS Lambda",
   "main": "index.js",
   "scripts": {
@@ -22,17 +22,17 @@
     "url": "https://github.com/willyg302/gulp-awslambda/issues"
   },
   "dependencies": {
-    "aws-sdk": "~2.2.26",
-    "gulp-util": "~3.0.7",
-    "through2": "~0.6.5",
-    "xtend": "~4.0.1"
+    "aws-sdk": "^2.3.3",
+    "gulp-util": "^3.0.7",
+    "through2": "^2.0.1",
+    "xtend": "^4.0.1"
   },
   "devDependencies": {
-    "gulp": "~3.8.10",
-    "mocha": "~2.1.0",
-    "should": "~4.5.0",
-    "sinon": "~1.12.2",
-    "eslint": "~1.10.3",
+    "gulp": "~3.9.1",
+    "mocha": "~2.4.5",
+    "should": "~8.3.1",
+    "sinon": "~1.17.3",
+    "eslint": "~2.8.0",
     "istanbul": "~0.4.1",
     "proxyquire": "~1.7.3"
   }
