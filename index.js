@@ -12,7 +12,7 @@ var DEFAULT_OPTS = {
 
 var DEFAULT_PARAMS = {
 	Handler: 'index.handler',
-	Runtime: 'nodejs4.3'
+	Runtime: 'nodejs6.10'
 };
 
 
@@ -69,7 +69,10 @@ module.exports = function(params, opts) {
 
 		if (opts.profile !== null) {
 			AWS.config.credentials = new AWS.SharedIniFileCredentials({ profile: opts.profile });
+		} else if(opts.credentials !== null) {
+			AWS.config.credentials = new AWS.Credentials(opts.credentials.key, opts.credentials.secret);
 		}
+
 
 		AWS.config.update({ region: opts.region });
 
