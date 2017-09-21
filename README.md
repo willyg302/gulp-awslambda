@@ -97,7 +97,7 @@ Requires publish=true.  Creates an alias for the version being published.  If th
 
 #### `name` 
 
-Required. The name of the alias.
+Required string. The name of the alias.
 
 #### `description`
 

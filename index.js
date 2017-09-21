@@ -131,6 +131,13 @@ module.exports = function(params, opts) {
 		if (toUpload && toUpload.path.slice(-4) !== '.zip') {
 			return cb(makeErr('Provided file is not a ZIP'));
 		}
+                if (opts.alias) {
+                    if ( !opts.alias.name) 
+                        return cb(makeErr("Alias requires a " + gutil.colors.red("name") + " parameter"));
+                    else if (!(typeof opts.alias.name === 'string')) {
+                        return cb(makeErr("Alias " + gutil.colors.red("name") + " must be a string"));
+                    }
+                }
 
 		gutil.log('Uploading Lambda function "' + functionName + '"...');
 
