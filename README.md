@@ -90,3 +90,11 @@ Allows you to publish a new version when passing in a string for `lambda_params`
 #### `region = 'us-east-1'`
 
 Set your AWS region.
+
+#### `alias = 'some-alias'`
+
+Requires publish=true.  Creates an alias for the version being published.  If the alias already exists, it is updated to point to the version being published.
+
+#### `aliasDescription = 'description of alias'`
+
+Requires alias. Optional text to describe the function's version alias.
