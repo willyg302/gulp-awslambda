@@ -45,7 +45,7 @@ var createAlias = function(lambda, functionName, functionVersion, alias, aliasDe
         Description: aliasDescription}, 
         function(err, data) {
           if (err) {
-              gutil.log("Could not create alias " + alias + "\n" + err);  
+              gutil.log("Could not create alias " + alias + ":" + err);  
           } else {
               gutil.log("Created alias '" + gutil.colors.magenta(alias) + "' for version " + 
                         gutil.colors.magenta(functionVersion)); 
@@ -62,7 +62,7 @@ var updateAlias = function(lambda, functionName, functionVersion, alias, aliasDe
         Description: aliasDescription}, 
         function(err, data) {
           if (err) {
-              gutil.log("Could not create alias " + alias + "\n" + err);
+              gutil.log("Could not update alias " + alias + ":" + err);
           } else {
               gutil.log("Updated alias '" + gutil.colors.magenta(alias) + "' to point to version " + 
                         gutil.colors.magenta(functionVersion));
@@ -77,16 +77,22 @@ module.exports = function(params, opts) {
 	AWS.config.update({ region: opts.region });
 	var lambda = new AWS.Lambda();
 	var toUpload;
-	var functionName = typeof params === 'string'? params : params.FunctionName;
+	var functionName = typeof params === 'string' ? params : params.FunctionName;
 
         var updateOrCreateAlias = function(response) {
           if (opts.publish && opts.alias) {
-            lambda.getAlias({FunctionName:functionName, Name: opts.alias})
+            lambda.getAlias({FunctionName:functionName, Name: opts.alias.name})
 		  .on('success', function(r) { 
-			updateAlias(lambda, functionName, response.data.Version, opts.alias, opts.aliasDescription)
+			updateAlias(lambda, functionName,
+                                    (opts.alias.version || response.data.Version).toString(), 
+                                    opts.alias.name, 
+                                    opts.alias.description)
                    })
 		  .on('error', function(r) {
-			createAlias(lambda, functionName, response.data.Version, opts.alias, opts.aliasDescription)
+			createAlias(lambda, functionName, 
+                                    (opts.alias.version || response.data.Version).toString(), 
+                                    opts.alias.name,
+                                    opts.alias.description)
                    })
 		  .send();
             
@@ -145,22 +151,22 @@ module.exports = function(params, opts) {
 
 		if (typeof params === 'string') {
 			// Just updating code
-			var ufc = updateFunctionCode(lambda, params, toUpload, params, opts);
-                        ufc.on('success', successfulUpdate)
-                           .send(done);
+			updateFunctionCode(lambda, params, toUpload, params, opts)
+                          .on('success', successfulUpdate)
+                          .send(done);
 		} else {
 			lambda.getFunctionConfiguration({
 				FunctionName: params.FunctionName
 			}, function(err) {
 				if (err) {
 					// Creating a function
-					var cf = createFunction(lambda, toUpload, params, opts);
-                                        cf.on('success', successfulCreation)
+					createFunction(lambda, toUpload, params, opts)
+                                          .on('success', successfulCreation)
                                           .send(done);
 				} else {
 					// Updating code + config
-					var ufc = updateFunctionCode(lambda, params.FunctionName, toUpload, params, opts);
-                                        ufc.on('success', successfulUpdate)
+					updateFunctionCode(lambda, params.FunctionName, toUpload, params, opts)
+                                           .on('success', successfulUpdate)
                                            .send(function(err) {
 						if (err) {
 							return done(err);

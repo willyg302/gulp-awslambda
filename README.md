@@ -91,10 +91,18 @@ Allows you to publish a new version when passing in a string for `lambda_params`
 
 Set your AWS region.
 
-#### `alias = 'some-alias'`
+### `alias`
 
-Requires publish=true.  Creates an alias for the version being published.  If the alias already exists, it is updated to point to the version being published.
+Requires publish=true.  Creates an alias for the version being published.  If the alias already exists, it is updated to point to the version being published. Alternate versions may be specified.  The following options are supported:
 
-#### `aliasDescription = 'description of alias'`
+#### `name` 
 
-Requires alias. Optional text to describe the function's version alias.
+Required. The name of the alias.
+
+#### `description`
+
+Optional text to describe the function's version alias.
+
+#### `version`
+
+Optional version number to which to assign the alias.  If not specified, the alias will be assigned to the version just published.
