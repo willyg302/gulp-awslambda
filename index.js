@@ -166,19 +166,17 @@ module.exports = function(params, opts) {
 				if (err) {
 					// Creating a function
 					createFunction(lambda, toUpload, params, opts)
-                                          .on('success', successfulCreation)
-                                          .send(done);
+						.on('success', successfulCreation)
+						.send(done);
 				} else {
 					// Updating code + config
 					updateFunctionCode(lambda, params.FunctionName, toUpload, params, opts)
 						.on('success', successfulUpdate)
-						.send(function(err) {
-							if (err) {
-								return done(err);
-							}
-							delete params.Code;
-							lambda.updateFunctionConfiguration(params, done);
-						});
+						.send(
+							function() {
+								delete params.Code;
+								lambda.updateFunctionConfiguration(params, done);
+							});
 				}
 			});
 		}
