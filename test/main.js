@@ -226,4 +226,14 @@ describe('gulp-awslambda', function() {
 			mocked.methods.createFunction.firstCall.args[0].Publish.should.eql(true);
 		});
 	});
+
+	it('should error on alias specified without name', function(done) {
+		var mocked = lambdaPlugin(sandbox);
+		gulp.src(fixtures('hello.zip'), {buffer: true})
+			.pipe(mocked.plugin('someFunction', { publish: true, alias: {} }))
+			.on('error', function(err) {
+				err.message.should.eql('Alias requires a \u001b[31mname\u001b[39m parameter');
+				done();
+			});
+	});
 });
