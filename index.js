@@ -103,7 +103,9 @@ module.exports = function(params, opts) {
 							return done(err);
 						}
 						delete params.Code;
-						params.Runtime = runtime;
+						if (runtime) {
+							params.Runtime = runtime;
+						}
 						lambda.updateFunctionConfiguration(params, done);
 					});
 				}
