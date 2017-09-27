@@ -71,9 +71,9 @@ module.exports = function(params, opts) {
 			}, function(err) {
 				var operation = err ? 'create' : 'update';
 				upsertAlias(operation, lambda, functionName,
-						(opts.alias.version || response.data.Version).toString(),
-						opts.alias.name,
-						opts.alias.description);
+					(opts.alias.version || response.data.Version).toString(),
+					opts.alias.name,
+					opts.alias.description);
 			});
 		}
 	};

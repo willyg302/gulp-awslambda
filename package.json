@@ -16,6 +16,9 @@
     "aws",
     "lambda"
   ],
+  "engines": {
+    "node": ">=4.0.0"
+  },
   "author": "William Gaul",
   "license": "MIT",
   "bugs": {

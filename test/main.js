@@ -33,8 +33,8 @@ var lambdaPlugin = function(sandbox, methods) {
 		// createFunction and updateFunction need special handling because they
 		// are used as AWS.Request factories.
 		if (method === 'createFunction' || method === 'updateFunctionCode') {
-			var sendStub = sandbox.stub(AWS.Request.prototype, 'send',
-				function(cb) { cb(); });
+			var sendStub = sandbox.stub(AWS.Request.prototype, 'send')
+				.callsFake(function(cb) { cb(); });
 			var onStub = sandbox.stub(AWS.Request.prototype, 'on');
 			onStub.returns(AWS.Request.prototype);
 			onStub.yields(methods[method]);
