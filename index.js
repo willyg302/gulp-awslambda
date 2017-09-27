@@ -170,11 +170,15 @@ module.exports = function(params, opts) {
 						.send(done);
 				} else {
 					// Updating code + config
+					var runtime = params.Runtime;
 					updateFunctionCode(lambda, params.FunctionName, toUpload, params, opts)
 						.on('success', successfulUpdate)
 						.send(
 							function() {
 								delete params.Code;
+								if (runtime) {
+									params.Runtime = runtime;
+								}
 								lambda.updateFunctionConfiguration(params, done);
 							});
 				}

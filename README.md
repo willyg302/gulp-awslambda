@@ -59,7 +59,7 @@ corresponding to the name of an existing Lambda function. In this case gulp-awsl
 that is mostly the same as you would pass to [`updateFunctionConfiguration()`](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/Lambda.html#updateFunctionConfiguration-property). The only required parameters are `FunctionName` and `Role`. All the other parameters have the following default values:
 
 - `Handler = 'index.handler'`: This assumes a valid `exports.handler` in `index.js` at the root of your ZIP
-- `Runtime = 'nodejs4.3'`: Also accepts `'nodejs'`
+- `Runtime = 'nodejs4.3'`: Also accepts `'nodejs'` and `'nodejs6.10'`
 
 gulp-awslambda will perform an *upsert*, meaning the function will be created if it does not already exist, and updated (both code and configuration) otherwise.
 
