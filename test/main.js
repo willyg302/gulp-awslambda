@@ -37,6 +37,7 @@ var lambdaPlugin = function(sandbox, methods) {
 				function(cb) { cb(); });
 			var onStub = sandbox.stub(AWS.Request.prototype, 'on');
 			onStub.returns(AWS.Request.prototype);
+			onStub.yields(methods[method]);
 			mocked[method] = sandbox.stub();
 			mocked[method].returns(AWS.Request.prototype);
 		} else {
@@ -176,6 +177,24 @@ describe('gulp-awslambda', function() {
 		});
 	});
 
+	it('should update the function runtime if provided', function(done) {
+		var mocked = lambdaPlugin(sandbox, {
+			'getFunctionConfiguration': null,
+			'updateFunctionCode': null,
+			'updateFunctionConfiguration': null,
+		});
+		mock(sandbox, {
+			stream: mocked.plugin({ FunctionName: 'bar', Runtime: 'nodejs6.10' }),
+			fixture: 'hello.zip',
+			contents: 'test updateFunctionConfiguration',
+		}, done, function(file) {
+			mocked.methods.updateFunctionConfiguration.firstCall.args[0].should.eql({
+				FunctionName: 'bar',
+				Runtime: 'nodejs6.10',
+			});
+		});
+	});
+
 	it('should allow providing code from S3', function(done) {
 		var mocked = lambdaPlugin(sandbox, {
 			'getFunctionConfiguration': true,  // Cause an error
@@ -200,7 +219,9 @@ describe('gulp-awslambda', function() {
 	});
 
 	it('should allow publishing for update from a string', function(done) {
-		var mocked = lambdaPlugin(sandbox, { 'updateFunctionCode': null });
+		var mocked = lambdaPlugin(sandbox, {
+			'updateFunctionCode': { data: { Version: 1 } },
+		});
 		mock(sandbox, {
 			stream: mocked.plugin('someFunction', { publish: true }),
 			fixture: 'hello.zip',
@@ -235,5 +256,61 @@ describe('gulp-awslambda', function() {
 				err.message.should.eql('Alias requires a \u001b[31mname\u001b[39m parameter');
 				done();
 			});
+	});
+
+	it('should error if specified alias name is not a string', function(done) {
+		var mocked = lambdaPlugin(sandbox);
+		gulp.src(fixtures('hello.zip'), {buffer: true})
+			.pipe(mocked.plugin('someFunction', { publish: true, alias: { name: 5 } }))
+			.on('error', function(err) {
+				err.message.should.eql('Alias \u001b[31mname\u001b[39m must be a string');
+				done();
+			});
+	});
+
+	it('should create an alias if necessary', function(done) {
+		var mocked = lambdaPlugin(sandbox, {
+			'updateFunctionCode': { data: { Version: 1 } },
+			'getAlias': true,  // Cause an error
+			'createAlias': null,
+		});
+		mock(sandbox, {
+			stream: mocked.plugin('someFunction', { publish: true, alias: { name: 'alias' } }),
+			fixture: 'hello.zip',
+			contents: 'test updateFunctionCode',
+		}, done, function(file) {
+			mocked.methods.getAlias.firstCall.args[0].should.eql({
+				FunctionName: 'someFunction',
+				Name: 'alias',
+			});
+			mocked.methods.createAlias.firstCall.args[0].should.eql({
+				FunctionName: 'someFunction',
+				FunctionVersion: '1',
+				Name: 'alias',
+				Description: undefined,
+			});
+		});
+	});
+
+	it('should update an alias if necessary', function(done) {
+		var mocked = lambdaPlugin(sandbox, {
+			'updateFunctionCode': { data: { Version: 1 } },
+			'getAlias': null,
+			'updateAlias': null,
+		});
+		// Also test all alias options
+		var alias = { name: 'alias', description: 'my alias', version: 42 };
+		mock(sandbox, {
+			stream: mocked.plugin('someFunction', { publish: true, alias: alias }),
+			fixture: 'hello.zip',
+			contents: 'test updateFunctionCode',
+		}, done, function(file) {
+			mocked.methods.updateAlias.firstCall.args[0].should.eql({
+				FunctionName: 'someFunction',
+				FunctionVersion: '42',
+				Name: 'alias',
+				Description: 'my alias',
+			});
+		});
 	});
 });

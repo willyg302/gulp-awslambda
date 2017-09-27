@@ -37,38 +37,23 @@ var createFunction = function(lambda, upload, params, opts) {
 	}, params));
 };
 
-var createAlias = function(lambda, functionName, functionVersion, alias, aliasDescription) {
-	lambda.createAlias({
+var upsertAlias = function(operation, lambda, functionName, functionVersion, alias, aliasDescription) {
+	var params = {
 		FunctionName: functionName,
 		FunctionVersion: functionVersion,
 		Name: alias,
-		Description: aliasDescription}, 
-		function(err) {
-			if (err) {
-				gutil.log('Could not create alias ' + alias + ':' + err);  
-			} else {
-				gutil.log('Created alias ' + gutil.colors.magenta(alias) + ' for version ' + 
-					gutil.colors.magenta(functionVersion)); 
-			}
-		});
+		Description: aliasDescription
+	};
+	lambda[operation + 'Alias'](params, function(err) {
+		if (err) {
+			gutil.log('Could not ' + operation + ' alias ' + alias + ':' + err);
+		} else {
+			gutil.log(operation + 'd alias ' + gutil.colors.magenta(alias) + ' for version ' +
+				gutil.colors.magenta(functionVersion));
+		}
+	});
 };
 
-var updateAlias = function(lambda, functionName, functionVersion, alias, aliasDescription) {
-	lambda.updateAlias({
-		FunctionName: functionName,
-		FunctionVersion: functionVersion,
-		Name: alias,
-		Description: aliasDescription}, 
-		function(err) {
-			if (err) {
-				gutil.log('Could not update alias ' + alias + ':' + err);
-			} else {
-				gutil.log('Updated alias ' + gutil.colors.magenta(alias) + 
-					' to point to version ' + 
-					gutil.colors.magenta(functionVersion));
-			}
-		});
-};
 
 module.exports = function(params, opts) {
 	opts = extend(DEFAULT_OPTS, opts);
@@ -80,28 +65,25 @@ module.exports = function(params, opts) {
 
 	var updateOrCreateAlias = function(response) {
 		if (opts.publish && opts.alias) {
-			lambda.getAlias({FunctionName:functionName, Name: opts.alias.name})
-				.on('success', function() { 
-					updateAlias(lambda, functionName,
-						(opts.alias.version || response.data.Version).toString(), 
-						opts.alias.name, 
-						opts.alias.description);
-				})
-				.on('error', function() {
-					createAlias(lambda, functionName, 
-						(opts.alias.version || response.data.Version).toString(), 
+			lambda.getAlias({
+				FunctionName: functionName,
+				Name: opts.alias.name
+			}, function(err) {
+				var operation = err ? 'create' : 'update';
+				upsertAlias(operation, lambda, functionName,
+						(opts.alias.version || response.data.Version).toString(),
 						opts.alias.name,
 						opts.alias.description);
-				})
-				.send();
+			});
 		}
 	};
 	var printVersion = function(response) {
-		if (opts.publish)
+		if (opts.publish) {
 			gutil.log('Publishing Function Version: ' + gutil.colors.magenta(response.data.Version));
+		}
 	};
 	var successfulUpdate = function(response) {
-		printVersion(response);  
+		printVersion(response);
 		updateOrCreateAlias(response);
 	};
 	var successfulCreation = function(response) {
@@ -130,9 +112,9 @@ module.exports = function(params, opts) {
 			return cb(makeErr('Provided file is not a ZIP'));
 		}
 		if (opts.alias) {
-			if ( !opts.alias.name) 
+			if (!opts.alias.name) {
 				return cb(makeErr('Alias requires a ' + gutil.colors.red('name') + ' parameter'));
-			else if (!(typeof opts.alias.name === 'string')) {
+			} else if (!(typeof opts.alias.name === 'string')) {
 				return cb(makeErr('Alias ' + gutil.colors.red('name') + ' must be a string'));
 			}
 		}
@@ -157,8 +139,8 @@ module.exports = function(params, opts) {
 		if (typeof params === 'string') {
 			// Just updating code
 			updateFunctionCode(lambda, params, toUpload, params, opts)
-                          .on('success', successfulUpdate)
-                          .send(done);
+				.on('success', successfulUpdate)
+				.send(done);
 		} else {
 			lambda.getFunctionConfiguration({
 				FunctionName: params.FunctionName
@@ -173,14 +155,13 @@ module.exports = function(params, opts) {
 					var runtime = params.Runtime;
 					updateFunctionCode(lambda, params.FunctionName, toUpload, params, opts)
 						.on('success', successfulUpdate)
-						.send(
-							function() {
-								delete params.Code;
-								if (runtime) {
-									params.Runtime = runtime;
-								}
-								lambda.updateFunctionConfiguration(params, done);
-							});
+						.send(function() {
+							delete params.Code;
+							if (runtime) {
+								params.Runtime = runtime;
+							}
+							lambda.updateFunctionConfiguration(params, done);
+						});
 				}
 			});
 		}
