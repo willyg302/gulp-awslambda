@@ -6,6 +6,7 @@ var sinon = require('sinon');
 var gulp = require('gulp');
 var gutil = require('gulp-util');
 var path = require('path');
+var AWS = require('aws-sdk');
 
 
 var fixtures = function(glob) {
@@ -29,8 +30,19 @@ var lambdaPlugin = function(sandbox, methods) {
 	methods = methods || {};
 	var mocked = {};
 	Object.keys(methods).forEach(function(method) {
-		mocked[method] = sandbox.stub();
-		mocked[method].yields(methods[method]);
+		// createFunction and updateFunction need special handling because they
+		// are used as AWS.Request factories.
+		if (method === 'createFunction' || method === 'updateFunctionCode') {
+			var sendStub = sandbox.stub(AWS.Request.prototype, 'send',
+				function(cb) { cb(); });
+			var onStub = sandbox.stub(AWS.Request.prototype, 'on');
+			onStub.returns(AWS.Request.prototype);
+			mocked[method] = sandbox.stub();
+			mocked[method].returns(AWS.Request.prototype);
+		} else {
+			mocked[method] = sandbox.stub();
+			mocked[method].yields(methods[method]);
+		}
 	});
 	var plugin = proxyquire('../', {
 		'aws-sdk': {
@@ -201,7 +213,7 @@ describe('gulp-awslambda', function() {
 	it('should favor Publish from params over opts', function(done) {
 		var mocked = lambdaPlugin(sandbox, {
 			'getFunctionConfiguration': true,  // Cause an error
-			'createFunction': null,
+			'createFunction': null
 		});
 		mock(sandbox, {
 			stream: mocked.plugin({
@@ -213,5 +225,15 @@ describe('gulp-awslambda', function() {
 		}, done, function(file) {
 			mocked.methods.createFunction.firstCall.args[0].Publish.should.eql(true);
 		});
+	});
+
+	it('should error on alias specified without name', function(done) {
+		var mocked = lambdaPlugin(sandbox);
+		gulp.src(fixtures('hello.zip'), {buffer: true})
+			.pipe(mocked.plugin('someFunction', { publish: true, alias: {} }))
+			.on('error', function(err) {
+				err.message.should.eql('Alias requires a \u001b[31mname\u001b[39m parameter');
+				done();
+			});
 	});
 });
