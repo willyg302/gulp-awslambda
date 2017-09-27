@@ -97,11 +97,13 @@ module.exports = function(params, opts) {
 					createFunction(lambda, toUpload, params, opts, done);
 				} else {
 					// Updating code + config
+					var runtime = params.Runtime;
 					updateFunctionCode(lambda, params.FunctionName, toUpload, params, opts, function(err) {
 						if (err) {
 							return done(err);
 						}
 						delete params.Code;
+						params.Runtime = runtime;
 						lambda.updateFunctionConfiguration(params, done);
 					});
 				}
