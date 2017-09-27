@@ -12,7 +12,7 @@ var DEFAULT_OPTS = {
 
 var DEFAULT_PARAMS = {
 	Handler: 'index.handler',
-	Runtime: 'nodejs'
+	Runtime: 'nodejs4.3'
 };
 
 
@@ -101,6 +101,7 @@ module.exports = function(params, opts) {
 						if (err) {
 							return done(err);
 						}
+						delete params.Code;
 						lambda.updateFunctionConfiguration(params, done);
 					});
 				}
