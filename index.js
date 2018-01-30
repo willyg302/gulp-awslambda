@@ -58,6 +58,9 @@ var upsertAlias = function(operation, lambda, functionName, functionVersion, ali
 module.exports = function(params, opts) {
 	opts = extend(DEFAULT_OPTS, opts);
 
+	if (opts.profile !== null) {
+		AWS.config.credentials = new AWS.SharedIniFileCredentials({ profile: opts.profile });
+	}
 	AWS.config.update({ region: opts.region });
 	var lambda = new AWS.Lambda();
 	var toUpload;
@@ -120,10 +123,6 @@ module.exports = function(params, opts) {
 		}
 
 		gutil.log('Uploading Lambda function "' + functionName + '"...');
-
-		if (opts.profile !== null) {
-			AWS.config.credentials = new AWS.SharedIniFileCredentials({ profile: opts.profile });
-		}
 
 		var stream = this;
 
