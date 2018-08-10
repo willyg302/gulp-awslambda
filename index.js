@@ -59,6 +59,11 @@ module.exports = function(params, opts) {
 	opts = extend(DEFAULT_OPTS, opts);
 
 	AWS.config.update({ region: opts.region });
+
+	if (opts.profile !== null) {
+		AWS.config.credentials = new AWS.SharedIniFileCredentials({ profile: opts.profile });
+	}
+
 	var lambda = new AWS.Lambda();
 	var toUpload;
 	var functionName = typeof params === 'string' ? params : params.FunctionName;
@@ -120,10 +125,6 @@ module.exports = function(params, opts) {
 		}
 
 		gutil.log('Uploading Lambda function "' + functionName + '"...');
-
-		if (opts.profile !== null) {
-			AWS.config.credentials = new AWS.SharedIniFileCredentials({ profile: opts.profile });
-		}
 
 		var stream = this;
 
