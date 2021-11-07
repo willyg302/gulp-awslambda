@@ -4,168 +4,329 @@ var gutil = require('gulp-util');
 var through = require('through2');
 var extend = require('xtend');
 
-
 var DEFAULT_OPTS = {
-	profile: null,
-	region: 'us-east-1'
+  profile: null,
+  region: 'us-east-1'
 };
 
 var DEFAULT_PARAMS = {
-	Handler: 'index.handler',
-	Runtime: 'nodejs4.3'
+  Handler: 'index.handler',
+  Runtime: 'nodejs12.x'
 };
 
+function makeErr(message) {
+  return new gutil.PluginError('gulp-awslambda', message);
+}
 
-var makeErr = function(message) {
-	return new gutil.PluginError('gulp-awslambda', message);
-};
+/**
+ *
+ * @param {Lambda} lambda
+ * @param {string} name
+ * @param {{contents: Buffer|Uint8Array|Blob|string }} upload
+ * @param {{Runtime: string}} params
+ * @param {{}} opts
+ * @returns {Promise<Lambda.FunctionConfiguration>}
+ */
+function updateFunctionCode(lambda, name, upload, params, opts) {
+  delete params.Runtime;
+  var code = { ZipFile: upload.contents };
+  return lambda
+    .updateFunctionCode(
+      extend(
+        {
+          FunctionName: name
+        },
+        code,
+        {
+          Publish: opts.publish || false
+        }
+      )
+    )
+    .promise();
+}
 
-var updateFunctionCode = function(lambda, name, upload, params, opts) {
-	delete params.Runtime;
-	var code = params.Code || { ZipFile: upload.contents };
-	return lambda.updateFunctionCode(extend({
-		FunctionName: name
-	}, code, {
-		Publish: opts.publish || false
-	}));
-};
+/**
+ *
+ * @param {Lambda} lambda
+ * @param {{contents: Buffer | Blob| string}} upload
+ * @param {{Code: *}} params
+ * @param {{publish: [boolean]}} opts
+ * @returns {Promise<Lambda.FunctionConfiguration>}
+ */
+function createFunction(lambda, upload, params, opts) {
+  params.Code = params.Code || { ZipFile: upload.contents };
+  return lambda
+    .createFunction(
+      extend(
+        DEFAULT_PARAMS,
+        {
+          Publish: opts.publish || false
+        },
+        params
+      )
+    )
+    .promise();
+}
 
-var createFunction = function(lambda, upload, params, opts) {
-	params.Code = params.Code || { ZipFile: upload.contents };
-	return lambda.createFunction(extend(DEFAULT_PARAMS, {
-		Publish: opts.publish || false
-	}, params));
-};
+/**
+ *
+ * @param {string} operation
+ * @param {Lambda} lambda
+ * @param {string} functionName
+ * @param {number} functionVersion
+ * @param {string} alias
+ * @param {string} aliasDescription
+ * @returns {Promise}
+ */
+async function upsertAlias(
+  operation,
+  lambda,
+  functionName,
+  functionVersion,
+  alias,
+  aliasDescription
+) {
+  var params = {
+    FunctionName: functionName,
+    FunctionVersion: functionVersion,
+    Name: alias,
+    Description: aliasDescription
+  };
+  gutil.log(`attempting to ${operation} alias ${alias}`);
+  const aliasFunc =
+    operation === 'create'
+      ? lambda.createAlias.bind(lambda)
+      : lambda.updateAlias.bind(lambda);
+  try {
+    await aliasFunc(params).promise();
+    gutil.log(
+      `${operation}d alias ${gutil.colors.magenta(
+        alias
+      )} to point to version ${gutil.colors.magenta(functionVersion)}`
+    );
+  } catch (err) {
+    gutil.log(`Could not ${operation} alias ${alias}: ${err}`);
+  }
+}
 
-var upsertAlias = function(operation, lambda, functionName, functionVersion, alias, aliasDescription) {
-	var params = {
-		FunctionName: functionName,
-		FunctionVersion: functionVersion,
-		Name: alias,
-		Description: aliasDescription
-	};
-	lambda[operation + 'Alias'](params, function(err) {
-		if (err) {
-			gutil.log('Could not ' + operation + ' alias ' + alias + ':' + err);
-		} else {
-			gutil.log(operation + 'd alias ' + gutil.colors.magenta(alias) + ' for version ' +
-				gutil.colors.magenta(functionVersion));
-		}
-	});
-};
+module.exports = function (params, opts) {
+  opts = extend(DEFAULT_OPTS, opts);
 
+  AWS.config.update({ region: opts.region });
+  var lambda = new AWS.Lambda();
+  var toUpload;
+  var functionName = typeof params === 'string' ? params : params.FunctionName;
 
-module.exports = function(params, opts) {
-	opts = extend(DEFAULT_OPTS, opts);
+  async function updateOrCreateAlias(functionConfiguration) {
+    let operation;
+    if (!(opts.publish && opts.alias))
+      return Promise.resolve('not updating alias');
 
-	AWS.config.update({ region: opts.region });
-	var lambda = new AWS.Lambda();
-	var toUpload;
-	var functionName = typeof params === 'string' ? params : params.FunctionName;
+    gutil.log(`Getting alias: ${opts.alias.name}`);
+    try {
+      await lambda
+        .getAlias({
+          FunctionName: functionName,
+          Name: opts.alias.name
+        })
+        .promise();
+      operation = 'update';
+    } catch (error) {
+      operation = 'create';
+    }
+    try {
+      await upsertAlias(
+        operation,
+        lambda,
+        functionName,
+        (opts.alias.version || functionConfiguration.Version).toString(),
+        opts.alias.name,
+        opts.alias.description
+      );
+    } catch (error) {
+      gutil.log(`Failed to ${operation} alias: ${error}`);
+      throw error;
+    }
+  }
+  function printVersion(functionConfiguration) {
+    if (opts.publish) {
+      gutil.log(
+        'Publishing Function Version: ' +
+          gutil.colors.magenta(functionConfiguration.Version)
+      );
+    }
+  }
+  function transform(file, enc, cb) {
+    if (file.isNull()) {
+      return cb();
+    }
+    if (file.isStream()) {
+      return cb(makeErr('Streaming is not supported'));
+    }
+    if (!toUpload) {
+      toUpload = file;
+    }
+    cb();
+  }
 
-	var updateOrCreateAlias = function(response) {
-		if (opts.publish && opts.alias) {
-			lambda.getAlias({
-				FunctionName: functionName,
-				Name: opts.alias.name
-			}, function(err) {
-				var operation = err ? 'create' : 'update';
-				upsertAlias(operation, lambda, functionName,
-					(opts.alias.version || response.data.Version).toString(),
-					opts.alias.name,
-					opts.alias.description);
-			});
-		}
-	};
-	var printVersion = function(response) {
-		if (opts.publish) {
-			gutil.log('Publishing Function Version: ' + gutil.colors.magenta(response.data.Version));
-		}
-	};
-	var successfulUpdate = function(response) {
-		printVersion(response);
-		updateOrCreateAlias(response);
-	};
-	var successfulCreation = function(response) {
-		printVersion(response);
-		updateOrCreateAlias(response);
-	};
+  async function flush(cb) {
+    if (!toUpload && (typeof params === 'string' || !params.Code)) {
+      return cb(makeErr('No code provided'));
+    }
+    if (toUpload && toUpload.path.slice(-4) !== '.zip') {
+      return cb(makeErr('Provided file is not a ZIP'));
+    }
+    if (opts.alias) {
+      if (!opts.alias.name) {
+        return cb(
+          makeErr(`Alias requires a ${gutil.colors.red('name')} parameter`)
+        );
+      } else if (!(typeof opts.alias.name === 'string')) {
+        return cb(
+          makeErr(`Alias ${gutil.colors.red('name')} must be a string`)
+        );
+      }
+    }
 
-	var transform = function(file, enc, cb) {
-		if (file.isNull()) {
-			return cb();
-		}
-		if (file.isStream()) {
-			return cb(makeErr('Streaming is not supported'));
-		}
-		if (!toUpload) {
-			toUpload = file;
-		}
-		cb();
-	};
+    gutil.log(`Uploading Lambda function "${functionName}"...`);
 
-	var flush = function(cb) {
-		if (!toUpload && (typeof params === 'string' || !params.Code)) {
-			return cb(makeErr('No code provided'));
-		}
-		if (toUpload && toUpload.path.slice(-4) !== '.zip') {
-			return cb(makeErr('Provided file is not a ZIP'));
-		}
-		if (opts.alias) {
-			if (!opts.alias.name) {
-				return cb(makeErr('Alias requires a ' + gutil.colors.red('name') + ' parameter'));
-			} else if (!(typeof opts.alias.name === 'string')) {
-				return cb(makeErr('Alias ' + gutil.colors.red('name') + ' must be a string'));
-			}
-		}
+    if (opts.profile !== null) {
+      AWS.config.credentials = new AWS.SharedIniFileCredentials({
+        profile: opts.profile
+      });
+    }
 
-		gutil.log('Uploading Lambda function "' + functionName + '"...');
+    var stream = this;
 
-		if (opts.profile !== null) {
-			AWS.config.credentials = new AWS.SharedIniFileCredentials({ profile: opts.profile });
-		}
+    function done(err) {
+      if (err) {
+        return cb(makeErr(err.message));
+      }
+      gutil.log(`Lambda function "${functionName}" successfully uploaded`);
+      stream.push(toUpload);
+      cb();
+    }
 
-		var stream = this;
+    let functionConfiguration;
+    if (typeof params === 'string') {
+      // Just updating code
+      try {
+        gutil.log(`updating function code for "${functionName}"`);
+        functionConfiguration = await updateFunctionCode(
+          lambda,
+          params,
+          toUpload,
+          params,
+          opts
+        );
+        gutil.log(
+          `function configuration is ${JSON.stringify(
+            functionConfiguration
+          )}. waiting for active state...`
+        );
+        await lambda
+          .waitFor('functionActive', { FunctionName: functionName })
+          .promise();
+        printVersion(functionConfiguration);
+        gutil.log(
+          `updating alias "${opts.alias.name}" for function "${functionName}"`
+        );
+        await updateOrCreateAlias(functionConfiguration);
+        done();
+      } catch (error) {
+        done(error);
+      }
+    } else {
+      try {
+        gutil.log(`getting function configuration for "${functionName}"`);
+        const existingParams = await lambda
+          .getFunctionConfiguration({
+            FunctionName: functionName
+          })
+          .promise();
+        try {
+          // Updating code + config
+          gutil.log(`updating function code for "${functionName}"`);
+          functionConfiguration = await updateFunctionCode(
+            lambda,
+            functionName,
+            toUpload,
+            params,
+            opts
+          );
+          gutil.log(
+            `function configuration is ${JSON.stringify(
+              functionConfiguration
+            )}. waiting for active state...`
+          );
+          await lambda
+            .waitFor('functionActive', { FunctionName: functionName })
+            .promise();
+          printVersion(functionConfiguration);
+          gutil.log(
+            `updating alias "${opts.alias.name}" for function "${functionName}"`
+          );
+          await updateOrCreateAlias(functionConfiguration);
+          gutil.log(`waiting for update to complete...`);
+          await lambda
+            .waitFor('functionUpdated', { FunctionName: functionName })
+            .promise();
+          const {
+            Description,
+            FunctionName,
+            Handler,
+            MemorySize,
+            Role,
+            Runtime,
+            Timeout
+          } = existingParams;
+          const newParams = {
+            Description,
+            FunctionName,
+            Handler,
+            MemorySize,
+            Role,
+            Runtime,
+            Timeout,
+            ...params
+          };
+          delete newParams.Code;
+          gutil.log('updating function configuration...');
+          await lambda.updateFunctionConfiguration(newParams).promise();
+          done();
+        } catch (error) {
+          done(error);
+        }
+      } catch (error) {
+        gutil.log(
+          `failed to get configuration for "${functionName}". ${error}`
+        );
+        // Creating a function
+        try {
+          gutil.log(`creating function "${functionName}"`);
+          functionConfiguration = await createFunction(
+            lambda,
+            toUpload,
+            params,
+            opts
+          );
+          gutil.log(
+            `function configuration is ${JSON.stringify(
+              functionConfiguration
+            )}. waiting for active state...`
+          );
+          await lambda
+            .waitFor('functionActive', { FunctionName: functionName })
+            .promise();
+          printVersion(functionConfiguration);
+          await updateOrCreateAlias(functionConfiguration);
+          done();
+        } catch (error) {
+          done(error);
+        }
+      }
+    }
+  }
 
-		var done = function(err) {
-			if (err) {
-				return cb(makeErr(err.message));
-			}
-			gutil.log('Lambda function "' + functionName + '" successfully uploaded');
-			stream.push(toUpload);
-			cb();
-		};
-
-		if (typeof params === 'string') {
-			// Just updating code
-			updateFunctionCode(lambda, params, toUpload, params, opts)
-				.on('success', successfulUpdate)
-				.send(done);
-		} else {
-			lambda.getFunctionConfiguration({
-				FunctionName: params.FunctionName
-			}, function(err) {
-				if (err) {
-					// Creating a function
-					createFunction(lambda, toUpload, params, opts)
-						.on('success', successfulCreation)
-						.send(done);
-				} else {
-					// Updating code + config
-					var runtime = params.Runtime;
-					updateFunctionCode(lambda, params.FunctionName, toUpload, params, opts)
-						.on('success', successfulUpdate)
-						.send(function() {
-							delete params.Code;
-							if (runtime) {
-								params.Runtime = runtime;
-							}
-							lambda.updateFunctionConfiguration(params, done);
-						});
-				}
-			});
-		}
-	};
-
-	return through.obj(transform, flush);
+  return through.obj(transform, flush);
 };
